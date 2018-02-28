@@ -41,7 +41,7 @@ See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in t
 
 ### Sample from a defined distribution function
 
-As an example, after defining the SFW `DF` and the `sampler_input` functions, as in the *sfw.py*, to sample from the model:
+As an example, after defining the SFW `DF` and the corresponding `sampler_input` functions, as in the *sfw.py*, to sample from the model:
 
 ```python
 import star_sampler as ssp
@@ -65,7 +65,8 @@ sfw_rej_samples = ssam.sample(sample_method='rejection', N=Nstars, filename=None
 
 #OR
 #3. sample the model using importance sampling, requires additional @param steps and @param rfactor.
-#@param steps is number of steps for the proposal function, and rfactor is a multiplication factor that sets the number of proposal points to draw based on the desired samples.
+#@param steps is number of steps for the proposal function, and rfactor is the multiplication factor of 
+#the sample size that sets the number of proposal points to draw based on the desired samples.
 
 sfw_impt_samples = ssam.sample(sample_method='impt', N = Nstars, steps = 20, rfactor = 3,
                 filename=None, r_vr_vt=True, r_v=False)
@@ -99,7 +100,8 @@ x2,y2,z2,vx2,vy2,vz2 = ssam.sample(sample_method='impt', N = Nstars, steps = 20,
                 filename=None, r_vr_vt=False, r_v=True)
 ```
 
-To sample from Osipkov_Merritt model,
+
+To sample from Osipkov\_Merritt model,
 
 ```python
 import star_sampler as ssp
@@ -113,11 +115,13 @@ ssam = ssp.Sampler(myDF=om.OM_fprob, sampler_input = om.sampler_input,
                         model_param=model_param)
 
 #2. using rejection sampling
-rej_output = ssam.sample(sample_method='rejection', N=Nstars, filename='om_rej.txt', r_vr_vt=True, r_v=False)
+rej_output = ssam.sample(sample_method='rejection', N=Nstars, 
+                          filename='om_rej.txt', r_vr_vt=True, r_v=False)
 x1,y1,z1,vx1,vy1,vz1 = rej_output
 
 #3, Or use importance sampling.
-impt_output = ssam.sample(sample_method='impt', N=Nstars, steps=20, rfactor=30, filename='om_impt.txt', r_vr_vt=True, r_v=False)
+impt_output = ssam.sample(sample_method='impt', N=Nstars, steps=20, rfactor=30, 
+                          filename='om_impt.txt', r_vr_vt=True, r_v=False)
 x2,y2,z2,vx2,vy2,vz2 = impt_output
 ```
 
