@@ -42,7 +42,7 @@ See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in t
 
 ### Sample from a Distribution Function
 
-As an example, after defining the SFW `DF` and the corresponding `sampler_input` functions, as in the *sfw.py*, to sample from the model:
+As an example, after defining the *SFW* `DF` and the corresponding `sampler_input` functions, as in the *sfw.py*, to sample from the model:
 
 ```python
 import star_sampler as ssp
@@ -79,7 +79,7 @@ sfw_impt_samples = ssam.sample(sample_method='impt', N = Nstars, steps = 20, rfa
 ```
 
 
-We follow the same procedure to sample from King model.
+We follow the same procedure to sample from *King* model, defined in *king.py*.
 
 ```python
 import star_sampler as ssp
@@ -106,7 +106,7 @@ x2,y2,z2,vx2,vy2,vz2 = ssam.sample(sample_method='impt', N = Nstars, steps = 20,
 ```
 
 
-To sample from Osipkov\_Merritt model,
+To sample from *Osipkov\_Merritt* model, defined in *osipkov_merritt.py*
 
 ```python
 import star_sampler as ssp
