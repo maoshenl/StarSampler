@@ -2,7 +2,10 @@
 
 StarSampler is a Python framework that generates random samples from any user-defined distribution function(DF) that specifies the probability density of stellar coordinates within six-dimensional phase space.
 
-Users need to define a density DF and an input\_function. The reasons for the input\_function are, 1: pre-compute elements needed for density function calculation; 2: provide information needed for the StarSampler, which include number of spatial and velocity coordinates and spatial and velocity range. The functions needs to have the following signitures and outputs.
+Users need to define a density DF and an input\_function. The reasons for the input\_function are:
+1: Pre-compute elements needed for density function calculation. 
+2: Provide information needed for the StarSampler, which include number of spatial and velocity coordinates and spatial and velocity range. The functions needs to have the following signitures and outputs.
+
 
 '''python
 def user\_DF(X, V, model\_param, context):
@@ -13,7 +16,9 @@ def user\_DF(X, V, model\_param, context):
 
 return #DF\_probability
 '''
+
 AND 
+
 '''python
 def sampler\_input(model\_param):
   #same model\_param as in the user\_DF fucntion, a list
