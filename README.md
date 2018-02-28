@@ -43,7 +43,7 @@ See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in t
 
 As an example, after defining the SFW `DF` and the `sampler_input` functions, as in the *sfw.py*, to sample from the model:
 
-'''python
+```python
 import star_sampler as ssp
 import sfw
 
@@ -70,7 +70,7 @@ sfw_rej_samples = ssam.sample(sample_method='rejection', N=Nstars, filename=None
 sfw_impt_samples = ssam.sample(sample_method='impt', N = Nstars, steps = 20, rfactor = 3,
                 filename=None, r_vr_vt=True, r_v=False)
                 
-'''
+```
 
 
 We follow the same procedure to sample from King model.
