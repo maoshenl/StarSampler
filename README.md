@@ -2,10 +2,13 @@
 
 StarSampler is a Python framework that generates random samples from any user-defined distribution function(DF) that specifies the probability density of stellar coordinates within six-dimensional phase space. Two sampling methods are available, the *rejection sampling* and the *importance sampling*. 
 
-## Specify density function and input parameters
-Users need to define a density`DF` and an `input_function`. The reasons for the `input_function` are:
+### Specify density function and input parameters
+Users need to define a density `DF` and a `sampler_input` functions. The reasons for the `sampler_input` function are:
+
 1: Provide information needed for the StarSampler, which include number of spatial and velocity coordinates, and spatial and velocity range. 
+
 2: Pre-compute elements needed for density function calculation.
+
 
 The functions needs to have the following signitures and outputs.
 ```python
@@ -34,9 +37,11 @@ return nX, nV, context, rlim, vlim
 
 See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in the StarSampler directory. A brief discription of each model is in the paper.
 
-## Sampling from the distribution function
 
-For example, after defining the SFW DF and the input function as in the *sfw.py*, to sample from the model:
+
+### Sample from a defined distribution function
+
+As an example, after defining the SFW `DF` and the `sampler_input` functions, as in the *sfw.py*, to sample from the model:
 
 '''python
 import star_sampler as ssp
