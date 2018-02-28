@@ -28,7 +28,7 @@ def sampler_input(model_param):
   #model_param: a list, as in the DF fucntion
   #nX: an int, the number of spatial coordinates
   #nV: an int, the number of velocity coordinates
-  #context: a list of items that will be passed directly to the user\_DF 
+  #context: a list of items that will be passed directly to the DF function
   #rlim: sample range of spatial coordinates;  i.e. [lower-limit, upper-limit]
   #vlim: sample range of velocity coordinates; i.e. [lower-limit, upper-limit]
   
@@ -54,22 +54,26 @@ model_param = [a, d,  e, Ec, rlim, b0,b1,alp, q, Jb, rho, rs, alpha, beta, gamma
 
 Nstars = 1000 #the number of samples to draw
 
-#1. construct the sampler with modelparam, provide the DF function and input function
+#1. construct the sampler with model_param, input the DF function and input function
 ssam = ssp.Sampler(myDF = sfw.sfw_fprob, sampler_input = sfw.sampler_input, model_param=model_param)
 
-#2. sample the model using rejection sampling, specify filename (a string) will save the output to the file.
-#@params: r_vr_vt=False, r_v=False; if the DF has (r, vr, vt) or (r, v) as the coordinates, user can set one 
-#         of them to True and that will activate corresponding transformation to [x,y,z,vx,vy,vz] coordinates.
+#2. sample the model using rejection sampling .
+# specify filename (a string) will save the output to the file.
+# @params: r_vr_vt=False, r_v=False; if the DF has (r, vr, vt) or (r, v) as the coordinates, 
+# user can set one of them to True and that will activate corresponding transformation 
+# to [x,y,z,vx,vy,vz] coordinates.
 
-sfw_rej_samples = ssam.sample(sample_method='rejection', N=Nstars, filename=None, r_vr_vt=False, r_v=False)
+sfw_rej_samples = ssam.sample(sample_method='rejection', N=Nstars, 
+                                filename=None, r_vr_vt=False, r_v=False)
 
 #OR
 #3. sample the model using importance sampling, requires additional @param steps and @param rfactor.
-#@param steps is number of steps for the proposal function, and rfactor is the multiplication factor of 
-#the sample size that sets the number of proposal points to draw based on the desired samples.
+# @param steps: number of steps for the proposal function, 
+# @param rfactor: the multiplication factor of the sample size that sets the number of proposal 
+#                 points to draw.
 
 sfw_impt_samples = ssam.sample(sample_method='impt', N = Nstars, steps = 20, rfactor = 3,
-                filename=None, r_vr_vt=True, r_v=False)
+                                filename=None, r_vr_vt=True, r_v=False)
                 
 ```
 
@@ -89,15 +93,15 @@ Nstars = 1e4
 
 #1. construct the sampler
 ssam = ssp.Sampler(myDF = k.king_fprob, sampler_input = k.sampler_input,
-                        model_param=model_param)
+                    model_param=model_param)
 
 #2. sample the model using rejection sampling
-x1,y1,z1,vx1,vy1,vz1 = ssam.sample(sample_method='rejection', N=Nstars, filename=None,
-                r_vr_vt=False, r_v=True)
+x1,y1,z1,vx1,vy1,vz1 = ssam.sample(sample_method='rejection', N=Nstars, 
+                    filename=None, r_vr_vt=False, r_v=True)
 
 #3  sample the model using importance sampling
 x2,y2,z2,vx2,vy2,vz2 = ssam.sample(sample_method='impt', N = Nstars, steps = 20, rfactor = 3,
-                filename=None, r_vr_vt=False, r_v=True)
+                    filename=None, r_vr_vt=False, r_v=True)
 ```
 
 
