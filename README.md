@@ -130,7 +130,7 @@ impt_output = ssam.sample(sample_method='impt', N=Nstars, steps=20, rfactor=30,
 x2,y2,z2,vx2,vy2,vz2 = impt_output
 ```
 
-For some combinations of *Osipkov\_Merritt* model parameters sampling can become prohibitively inefficient for the purpose of draw-ing large samples. There is a standalone conditional sampling routine with better sampling efficiency. To draw samples using this routine,
+For some combinations of *Osipkov\_Merritt* model parameters the sampling can become prohibitively inefficient. There is a additional standalone conditional sampling routine with better sampling efficiency. To draw samples using this routine,
 
 ```python
 import osipkov_merritt as om
