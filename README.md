@@ -138,9 +138,10 @@ model_param = [1.0, 1., 2.,5., .1, .4 , 5., 1, 3.5, 1]
 Nstars= 1000
 
 #@param Phi_table_steps is number of steps that calculates the potential for interpolation.
-#@param GQ_table_steps is number of steps that calculates the G(Q) function for interpolation, and take derivative.
-
-#@param proposal_steps is number of steps to calculate to construct the proposal density of both r and Q distribution.
+#@param GQ_table_steps is number of steps that calculates the G(Q) function for interpolation, 
+#   and take derivative.
+#@param proposal_steps is number of steps to calculate to construct the proposal density of 
+#   both r and Q distribution.
 OM_conditional_output = om.OM_sample(model_param, Nstars, \
     Phi_table_steps=1e5, GQ_table_steps=1000, proposal_steps = 1000, r_vr_vt=True)
 
