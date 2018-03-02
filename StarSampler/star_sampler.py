@@ -387,8 +387,8 @@ def z_vr_vt_complete(samplelist, context):
 def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
 
         var_num = Xn + Vn + An
-	guessX = np.array( [rmax*.1]*Xn )
-	guessV = np.array( [vmax*.1]*Vn )
+	guessX = np.array( [rmax*.1]*Xn ) + 1e-3
+	guessV = np.array( [vmax*.1]*Vn ) + 1e-3
 	guess = tuple( np.hstack((guessX, guessV)) )
 	
 
@@ -399,7 +399,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                                 model_param, context)
                 return result
             optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4,x5,x6): -aux_fprob(x1,x2,x3,x4,x5,x6),
-                                                (0.1,0.1,0.1,0.1,0.1,0.1), disp=False)
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
         if var_num == 5 :
             def aux_fprob(x1,x2,x3,x4,x5):
@@ -408,7 +408,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                                 model_param, context)
                 return result
             optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4,x5): -aux_fprob(x1,x2,x3,x4,x5),
-                                                (0.1,0.1,0.1,0.1,0.1), disp=False)
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
         if var_num == 4 :
             def aux_fprob(x1,x2,x3,x4):
@@ -417,7 +417,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                                 model_param, context)
                 return result
             optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4): -aux_fprob(x1,x2,x3,x4),
-                                                (0.1,0.1,0.1,0.1), disp=False)
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
         if var_num == 3 :
             def aux_fprob(x1,x2,x3):
@@ -426,7 +426,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                                 model_param, context)
                 return result
             optvar = scipy.optimize.fmin(lambda (x1,x2,x3): -aux_fprob(x1,x2,x3),
-                                                (0.1,0.1,0.1), disp=False)
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
         if var_num == 2 :
             def aux_fprob(x1,x2):
@@ -435,7 +435,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                                 model_param, context)
                 return result
             optvar = scipy.optimize.fmin(lambda (x1,x2): -aux_fprob(x1,x2),
-                                                guess, disp=False)
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
 	if var_num == 1 :
             def aux_fprob(x1):
@@ -443,7 +443,8 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
                 result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
                                 model_param, context)
                 return result
-            optvar = scipy.optimize.fmin(lambda (x1): -aux_fprob(x1), (0.1), disp=False)
+            optvar = scipy.optimize.fmin(lambda (x1): -aux_fprob(x1), 
+			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
 
 

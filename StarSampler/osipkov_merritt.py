@@ -218,7 +218,8 @@ def getR200(DM_param):
 
 #-- num_rsteps = 1e5 should be enough of a table to approximate drho(r)/dPhi(r) 
 #-- num_Qsteps = 1000 should be enough to create G(Q) table to approximate f(Q)
-def OM_sample(model_param, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000, proposal_steps = 1000):
+def OM_sample(model_param, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000, 
+	proposal_steps = 1000, r_vr_vt=False):
 
 	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = model_param
 	G = 4302 # (kpc/m_sun) (km/s)^2 * 10**9
@@ -370,7 +371,11 @@ def OM_sample(model_param, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000,
 	samplearr = np.vstack((r_samples,vr_samples,vt_samples))
         samplearr = np.swapaxes(samplearr,0,1)
 	print 'OM sample time (sec): ', time.time()-t0 #, null_count
-	return r_vr_vt_complete(samplearr)
+
+	if r_vr_vt:
+                return r_vr_vt_complete(samplearr)
+
+	return samplearr
 	
 
 #stellar density
