@@ -1,6 +1,6 @@
 # StarSampler
 
-StarSampler is a Python framework that generates random samples from any user-defined distribution function(DF) that specifies the probability density of stellar coordinates within six-dimensional phase space. Two sampling methods are available, the *rejection sampling* and the *importance sampling*. See the [paper](https://arxiv.org/) for more details. 
+StarSampler is a Python module that generates random samples from any user-defined distribution function(DF) that specifies the probability density of stellar coordinates within six-dimensional phase space. Two sampling methods are available, the *rejection sampling* and the *importance sampling*. See the [paper](https://arxiv.org/) for more details. 
 
 
 ### Specify Density Function and Input parameters
