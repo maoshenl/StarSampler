@@ -29,7 +29,7 @@ def DF(self, X, V):
   #X: list of input position coordinates (i.e. [radius] or [x,y,z]).
   #V: list of input velocity coordinates (i.e. [tangential_speed, radial_speed] or [vx,vy,vz]).
   
-return #DF_probability
+  return #DF_probability
 ```
 
 See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in the StarSampler directory. A brief discription of each model is in the paper.
