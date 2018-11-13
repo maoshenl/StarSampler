@@ -23,7 +23,7 @@ class King(object):
         '''
 
         # Perform necessary calculations to setup King model, and use for DF calculation
-	self.model_param = model_param
+        self.model_param = model_param
         sigma  = model_param['sigma']
         ratio0 = model_param['ratio0']
         rho0   = model_param['rho0']
@@ -45,7 +45,7 @@ class King(object):
         self.Xlim = [0, np.max(xarr) * self.r0 ]
         self.Vlim = [0 , (2.0*psi0)**0.5]
 
-	self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim]
+        self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim]
 
 
     def DF(self, X, V):
@@ -91,7 +91,7 @@ def getPsigma2(ratio0=3.0):
             u1 = u[1]
             if  u0<0:  #need to investigate negative values
                 u0=0
-		u1=0
+                u1=0
             u1prime =(  (-u1*2.0/x) -
                         (9./(rho0_rho1)) * (np.exp(u0)*erf(u0**0.5)  - ((4*u0/np.pi)**0.5)*(1+2*u0/3.)) )
             u0prime = u1
@@ -99,28 +99,28 @@ def getPsigma2(ratio0=3.0):
 
             return uprime
 
-	# see Fig 4.9 of Binney&Tremaine (2008) for this guessed tidal radius.
-	# because we want to evaluate the equation up-until the tidal radius, if not, retry 
-	guessed_xmax = 2 + np.exp(.55*ratio0)
+        # see Fig 4.9 of Binney&Tremaine (2008) for this guessed tidal radius.
+        # because we want to evaluate the equation up-until the tidal radius, if not, retry 
+        guessed_xmax = 2 + np.exp(.55*ratio0)
         x  = np.linspace(1e-8, guessed_xmax, 1e4)  
         uinitial = np.asarray([ratio0, 0])
 
         psi_sigma2 = integrate.odeint(deriv, uinitial, x, printmessg=0)[:,0] 
-			#[:,1] contains the values of psi_prime
+                        #[:,1] contains the values of psi_prime
 
-	x_trunc = x[psi_sigma2>0] #that's the tidal radius 
-	xmax = np.max(x_trunc)
-	while xmax >= guessed_xmax:
-		guessed_xmax = guessed_xmax * 10
-		x  = np.linspace(1e-8, guessed_xmax, ratio0*1e4)
-		psi_sigma2 = integrate.odeint(deriv, uinitial, x, printmessg=0)[:,0]
-		x_trunc = x[psi_sigma2>0]
-	        C = np.max(x_trunc)
-		print 'increase guessed_xmax by x10, retry. '
-	psi_sigma2 = psi_sigma2[psi_sigma2>0]
+        x_trunc = x[psi_sigma2>0] #that's the tidal radius 
+        xmax = np.max(x_trunc)
+        while xmax >= guessed_xmax:
+                guessed_xmax = guessed_xmax * 10
+                x  = np.linspace(1e-8, guessed_xmax, ratio0*1e4)
+                psi_sigma2 = integrate.odeint(deriv, uinitial, x, printmessg=0)[:,0]
+                x_trunc = x[psi_sigma2>0]
+                C = np.max(x_trunc)
+                print 'increase guessed_xmax by x10, retry. '
+        psi_sigma2 = psi_sigma2[psi_sigma2>0]
 
-	fP = PchipInterpolator(x_trunc, psi_sigma2, extrapolate=False)
-	return x_trunc, psi_sigma2, fP
-	
+        fP = PchipInterpolator(x_trunc, psi_sigma2, extrapolate=False)
+        return x_trunc, psi_sigma2, fP
+        
 
 

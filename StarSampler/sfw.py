@@ -77,14 +77,14 @@ class SFW(object):
         vr, vt = V
         a,d,e, Ec, rlim, b0, b1, alp, q, Jb, rho, rs, alpha, beta, gamma = self.param_list
         P0, Plim = self.context
-	rhos = self.rhos # unit: [(km/s)^2 (1/kpc^2)]
+        rhos = self.rhos # unit: [(km/s)^2 (1/kpc^2)]
 
 
-	#by constrution alp needs to be positive when b1>b0, otherwise negative.	
-	if b1>b0:
-		alp = abs(alp)
-	else:
-		alp = -1*abs(alp)
+        #by constrution alp needs to be positive when b1>b0, otherwise negative.        
+        if b1>b0:
+                alp = abs(alp)
+        else:
+                alp = -1*abs(alp)
 
         Ps = rhos * rs**2   #unit (km/s)**2  #Vmax=0.465*sqrt(Ps)
         Pr = genphi0(r, rhos, rs, alpha, beta, gamma) - P0
@@ -96,12 +96,12 @@ class SFW(object):
         xlim = rlim / rs 
         Jb   = Jb * rs * (Ps**0.5) 
 
-	gJ = ( (J/Jb)**(b0/alp) + (J/Jb)**(b1/alp) )**alp
+        gJ = ( (J/Jb)**(b0/alp) + (J/Jb)**(b1/alp) )**alp
 
         N  = 1.0*10**3
 
-	E = E * (E<Plim) * (E>0)
-	hE = np.nan_to_num( N*(E**a) * ((E**q + Ec**q)**(d/q)) * ((Plim - E)**e) )
+        E = E * (E<Plim) * (E>0)
+        hE = np.nan_to_num( N*(E**a) * ((E**q + Ec**q)**(d/q)) * ((Plim - E)**e) )
 
 
         return hE * gJ * (4*np.pi*r*r * 2*np.pi*vt)     
@@ -125,7 +125,7 @@ def genphi0(r, rhos, rs, alpha, beta, gamma):
         Ps = rhos * rs**2
 
         x0 = 10**-15
-	alpha, beta, gamma = alpha*1.0, beta *1.0, gamma*1.0
+        alpha, beta, gamma = alpha*1.0, beta *1.0, gamma*1.0
 
         p1a = ss.hyp2f1((3.-gamma)/alpha, (beta*1.-gamma)/alpha, (3.+alpha-gamma)/alpha, -x0**alpha)
         p1b = ss.hyp2f1((3.-gamma)/alpha, (beta-gamma)/alpha, (3+alpha-gamma)/alpha,  -x**alpha)

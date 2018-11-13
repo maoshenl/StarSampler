@@ -132,7 +132,7 @@ def imptsample(fprob, rlim, vlim, Xn, Vn, An,
                 print 'Using importance sampling... '
                 print '  building proposal step function... '
 
-	steps = steps+1
+        steps = steps+1
         r0 = 1e-9
         rmin, rmax = rlim
         vmin, vmax = vlim
@@ -192,17 +192,17 @@ def imptsample(fprob, rlim, vlim, Xn, Vn, An,
         A = [ Ai-da*0.5 for Ai in mgridlist[Vn+Xn: var_num]]
         fvalues = fprob(X, V) #, model_param, context)
 
-	#print 'max fvalues: ' , max(fvalues.flatten())
+        #print 'max fvalues: ' , max(fvalues.flatten())
         fvalues = fvalues + max(fvalues.flatten())*.1 #+ np.amin(fvalues[fvalues>0]) #so that it's non-negative
         parr = fvalues.flatten()
 
-	'''
+        '''
         if (np.all(np.array(max_index)>=0) and np.all(np.array(max_index) < s-1)):
                 flatten_max_index = np.ravel_multi_index(max_index, fvalues.shape)
                 #print 'GOT THROUGH? ', flatten_max_index, fmax
                 parr[flatten_max_index] = fmax if parr[flatten_max_index]<fmax \
-						else parr[flatten_max_index]
-	'''
+                                                else parr[flatten_max_index]
+        '''
 
         if (np.sum(parr)==0):
                 print "ERROR: DF might be zero everywhere, or try to increase the step size."
@@ -240,9 +240,9 @@ def imptsample(fprob, rlim, vlim, Xn, Vn, An,
         fs = fprob(varlist[0:Xn], varlist[Xn:Vn+Xn]) # , model_param, context)
         ws = fs/ps
 
-	var1 = np.sum( ((ws-1)**2)/len(ws) )
+        var1 = np.sum( ((ws-1)**2)/len(ws) )
 
-	print 'Weight Variance: ', np.var(ws), var1
+        print 'Weight Variance: ', np.var(ws), var1
 
         if (sum(ws)==0):
                 print 'ERROR all proposal samples has zero probability >> Exit.'
@@ -466,14 +466,14 @@ def z_vr_vt_complete(samplelist, context):
 
 def getfmax(fprob, Xn, Vn, An, model_param, context, rlim, vlim, brute=True):
 
-	rmax = rlim[1]
-	vmax = vlim[1]
+        rmax = rlim[1]
+        vmax = vlim[1]
         var_num = Xn + Vn + An
         guessX = np.array( [rmax*.1]*Xn ) #+ 1e-3
         guessV = np.array( [vmax*.1]*Vn ) #+ 1e-3
         guess = tuple( np.hstack((guessX, guessV)) )
         
-	range = tuple( [rlim]*Xn + [vlim]*Vn ) #note rlim and vlim is [min, max]
+        range = tuple( [rlim]*Xn + [vlim]*Vn ) #note rlim and vlim is [min, max]
 
 
         def aux_fprob(*args):
@@ -489,7 +489,7 @@ def getfmax(fprob, Xn, Vn, An, model_param, context, rlim, vlim, brute=True):
 
 
         fmax = 1.0 * fprob(optvar[0:Xn], optvar[Xn:Vn+Xn]) 
-	print 'optvar, max: ', optvar, fmax
+        print 'optvar, max: ', optvar, fmax
 
         return optvar, fmax*1.05 +00 #TODO
 
