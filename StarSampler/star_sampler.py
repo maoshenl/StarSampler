@@ -5,7 +5,7 @@ import scipy.optimize
 import scipy.special as ss
 import time
 
-
+#TEST
 
 class Sampler(object):
     def __init__(self, myDF=None, sampler_input=None, model_param=None):
