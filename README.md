@@ -36,6 +36,7 @@ See examples of the three stellar DFs: King model, Osipkov-Merritt, and SFW in t
 
 
 
+
 ### Sample from a Distribution Function
 
 As an example, after defining the *SFW* model class and its`DF`, as in the *sfw.py*, to sample from the model:
@@ -72,6 +73,7 @@ sfw_impt_samples = ssp.impt_sample(sfw1,  steps=20, resample_factor=5,
 ```
 
 
+
 We follow the same procedure to sample from *King* model, defined in *king.py*.
 
 ```python
@@ -97,6 +99,7 @@ x1,y1,z1,vx1,vy1,vz1 = ssp.rejection_sample(king1, samplesize = Nstars,
 x2,y2,z2,vx2,vy2,vz2 = ssp.impt_sample(king1, steps=20, resample_factor=5,
                 samplesize = Nstars, replace=True, r_vr_vt=False, r_v=True, filename=None)
 ```
+
 
 
 To sample from *Osipkov\_Merritt\_Zhao* model, defined in *osipkov_merritt.py*
