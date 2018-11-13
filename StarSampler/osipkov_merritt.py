@@ -8,24 +8,81 @@ from scipy import integrate
 from scipy.interpolate import PchipInterpolator
 
 
-# @param X: list of input position coordinates (i.e. [r]).
-#        V: list of input velocity coordinates (i.e. [vr, vt]).
-#        model_param = [ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma] 
-#        context = [Qarr, fQ, rtrunc]
-#	  Qarr: Q array that fits G(Q) and f(Q). 
-#	  fQ: f(Q)
-#	  rtrunc: the radius at which DM density is truncated, currently set at R200
-def OM_fprob(X, V, model_param, context):
+class OM(object):
+    def __init__(self, **model_param):
+        '''
+        Reading in the model parameters, and perform necessary calculations 
+        to setup calculation of the model density function DF(X,V).
+
+        It is required that this __init__( ) function contains:
+            self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim], where
+                              nX (int)   : number of spatial variables.
+                              nV (int)   : number of velocity variables.
+                              Xlim (list): [min, max], range of the spatial variables
+                              Vlim (list): [min, max], range of the velocity variables. 
+        '''
+
+        ra   = model_param['ra']
+        rs_s = model_param['rs_s']
+        al_s = model_param['al_s']
+        be_s = model_param['be_s']
+        ga_s = model_param['ga_s']
+        rho  = model_param['rho']
+        rs   = model_param['rs']
+        alpha= model_param['alpha']
+        beta = model_param['beta']
+        gamma= model_param['gamma'] 
+
+        G = 4.302*1e-6 # (kpc/m_sun) (km/s)^2 * 10^9
+        self.rhos = 4*np.pi*G*rho
+        DM_param = [self.rhos, rs, alpha, beta, gamma]
+        self.param_list = [ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma]
+
+
+        #-- num_rsteps = 1e5 should be enough of a table to approximate drho(r)/dPhi(r) 
+        #-- num_Qsteps = 1000 should be enough to create G(Q) table to approximate f(Q)
+        Qarr, dfG, rtrunc = GQ(self.param_list, num_rsteps = 1e5, num_Qsteps = 1000)
+        r200 = getR200(DM_param)
+
+        Pr0 = OMgenphi(1e-8, rtrunc, self.rhos, rs, alpha, beta, gamma)
+        Plim0 = 0
+        vmax = (2 * abs(Plim0 - Pr0))**0.5
+
+        self.nX = 1
+        self.nV = 2
+        self.Xlim = [0, r200]
+        self.Vlim = [0, vmax]
+        self.context = [Qarr, dfG, rtrunc]
+        self.model_param = model_param
+   
+        # Required output of __init__()
+        self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim]
+
+
+
+    def DF(self, X, V):
+        '''
+        Osipkov-Merritt-Zhao probability function.
+
+        @param X: list of input position coordinates (i.e. [r]).
+               V: list of input velocity coordinates (i.e. [vr, vt]).
+
+        Required from class initialization:  
+               a) model parameter list = [ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma] 
+               b) context = [Qarr, fQ, rtrunc], where
+                      Qarr: Q array that fits G(Q) and f(Q). 
+                      fQ: f(Q) funtion
+                      rtrunc: the radius at which DM density is truncated, currently set at R200
+
+        Return (array): probability of coordinates in X, V
+        '''
+
         r, = X
         vr, vt = V
-	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = model_param
-	Qarr, fQ, rtrunc = context	
-
-	G = 4302 # (kpc/m_sun) (km/s)^2 *10^9 -- 10^9 is to convert rho's unit to [m_sun/kpc^3]
-        rhos = 4*np.pi*G*rho 
-
-	Pr = 0 - OMgenphi(r, rtrunc, rhos, rs, alpha, beta, gamma) 
-
+	Qarr, fQ, rtrunc = self.context	
+	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = self.param_list
+ 
+	Pr = 0 - OMgenphi(r, rtrunc, self.rhos, rs, alpha, beta, gamma) 
 	Q  = Pr - ( vr*vr + (1+r*r/(ra*ra))*vt*vt )*0.5
 
 	try:
@@ -44,30 +101,38 @@ def OM_fprob(X, V, model_param, context):
 	return p * (4*np.pi*r*r * 2*np.pi*vt) 
 
 
-def sampler_input(model_param):
-	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = model_param
-	G = 4302 # (kpc/m_sun) (km/s)^2 * 10^9
-        rhos = 4*np.pi*G*rho
 
-	DM_param = [rhos, rs, alpha, beta, gamma]
 
-	#-- num_rsteps = 1e5 should be enough of a table to approximate drho(r)/dPhi(r) 
-	#-- num_Qsteps = 1000 should be enough to create G(Q) table to approximate f(Q)
-	Qarr, dfG, rtrunc = GQ(model_param, num_rsteps = 1e5, num_Qsteps = 1000)
-        r200 = getR200(DM_param) 
+    def conditional_sample(self, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000,
+                proposal_steps = 1000, r_vr_vt=False):    
+        '''
+	Sampling the Osipkov-Merritt-Zhao model by conditional probability 
+        (i.e. first sampling r from p(r), then Q from p(Q|r), etc.)
 
-	Pr0 = OMgenphi(1e-8, rtrunc, rhos, rs, alpha, beta, gamma)
-        Plim0 = 0 
-	vmax = (2 * abs(Plim0 - Pr0))**0.5
+        @param samplesize (int): number of sample to draw from the DF(X, V).
+               Phi_table_steps (int): number of points in radius (r) use to create 
+                                potential Phi(r) and mass density rho(r) tables.
+               GQ_table_steps (int): number of points in Q use to to create G(Q) tables.
+               proposal_steps (int): number of steps in the proposal functions that's 
+                                     used to sample r and Q.
+               r_vr_vt (bool): if True convert obtained samples from (r, v_r, v_t) 
+                               to (x,y,z, vx, vy, vz).
 
-	nX = 1
-        nV = 2
-        context = [Qarr, dfG, rtrunc]
-        rlim = [0, r200]
-        vlim = [0, vmax]
-        return nX, nV, context, rlim, vlim
+        Return (array): (r, v_r, v_t) or (x,y,z,vx,vy,vz) sample arrays, depends on r_vr_vt flag.
+        '''
 
-#------------------ supporting functions ------------------------------------------
+        ans = OM_sample(self.param_list, self.context, samplesize, Phi_table_steps, GQ_table_steps,
+                proposal_steps, r_vr_vt)
+
+        return ans
+
+
+
+
+###------------------------------------------------------------------------------####
+###                                Support Functions                             ####
+###------------------------------------------------------------------------------####
+
 #alpha beta gamma potential energy, density is truncated at rtrunc 
 def OMgenphi(r, rtrunc, rhos, rs, alpha, beta, gamma):
         x0 = 10**-12
@@ -111,7 +176,7 @@ def GQ(model_param, num_rsteps = 1e5, num_Qsteps = 1000):
 	print 'Calculating f(Q) function... '
 
 	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = model_param
-	G = 4302 # (kpc/m_sun) (km/s)^2
+	G = 4.302 * 1e-6 # (kpc/m_sun) (km/s)^2
         rhos = 4*np.pi*G*rho
 
         DM_param = [rhos, rs, alpha, beta, gamma]
@@ -190,7 +255,7 @@ def GQ(model_param, num_rsteps = 1e5, num_Qsteps = 1000):
 	return Qarr, fQ, rtrunc
 
 
-#calculate R200 for a given dark matter parameters
+#calculate r200 for a given dark matter parameters
 def getR200(DM_param):
 	rhos, rs, al, be, ga, = DM_param
 
@@ -198,19 +263,30 @@ def getR200(DM_param):
 	H = .072 #km/s / kpc
 	rho_c = 3*H*H/(8*np.pi*G)
 
-	def F(r):
-		M200 = (4*np.pi/3.0) * r**3 * rho_c * 200.
-		x0 = 1e-10
-        	auxx = r/rs
-        	p1_a = ss.hyp2f1((3.-ga)/al, (be-ga)/al, (3+al-ga)/al, -x0**al)
-       		p1_b = ss.hyp2f1((3.-ga)/al,(be-ga)/al,(3.+al-ga)/al, -auxx**al)
-        	#note: rhos = 4Pi*G*rhos = ((21/.465)(1/rs))^2 = 4229.2 (km/s)^2 (1/kpc^2)
-        	Mr = (rhos/G) * ( x0**(3.-ga) * p1_a - auxx**(3.-ga) * p1_b ) / ((ga - 3.))
-		return Mr-M200
+        def f2(r):
+            x0 = 1e-10
+            auxx = r/rs
+            p1_a = ss.hyp2f1((3.-ga)/al, (be-ga)/al, (3+al-ga)/al, -x0**al)
+            p1_b = ss.hyp2f1((3.-ga)/al,(be-ga)/al,(3.+al-ga)/al, -auxx**al)
+            #note: rhos = 4Pi*G*rhos = ((21/.465)(1/rs))^2 = 4229.2 (km/s)^2 (1/kpc^2)
+            Mr_DM = (rhos/G) * ( x0**(3.-ga) * p1_a - auxx**(3.-ga) * p1_b ) / ((ga - 3.))
+            return Mr_DM*rs**3
 
-	R200 = scipy.optimize.broyden1(F, [1e6], f_tol=1e-1)[0]
+        rarr = np.linspace(rs, rs*10000, 1000000)
+        Mc = (4*np.pi/3.0) * rarr**3 * rho_c * 200.
+        Mr = f2(rarr)
+        min_indx = np.argmin(abs(Mr-Mc))
 
-	return R200 
+        try:
+                rarr2 = np.linspace(rarr[min_indx-5], rarr[min_indx+5], 1000)
+                Mc2 = (4*np.pi/3.0) * rarr2**3 * rho_c * 200.
+                Mr2 = f2(rarr2)
+                min_indx2 = np.argmin(abs(Mr2-Mc2))
+                r200 = rarr2[min_indx2]
+        except:
+                r200 = rarr[min_indx]
+
+        return r200 * 1
 
 
 
@@ -218,17 +294,19 @@ def getR200(DM_param):
 
 #-- num_rsteps = 1e5 should be enough of a table to approximate drho(r)/dPhi(r) 
 #-- num_Qsteps = 1000 should be enough to create G(Q) table to approximate f(Q)
-def OM_sample(model_param, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000, 
+def OM_sample(model_param, context, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000, 
 	proposal_steps = 1000, r_vr_vt=False):
 
+	samplesize, Phi_table_steps, GQ_table_steps, proposal_steps = \
+	    int(samplesize), int(Phi_table_steps), int(GQ_table_steps), int(proposal_steps)
+
 	ra, rs_s, al_s, be_s, ga_s, rho, rs, alpha, beta, gamma = model_param
-	G = 4302 # (kpc/m_sun) (km/s)^2 * 10**9
+	G = 4.302*1e-6 # (kpc/m_sun) (km/s)^2
         rhos = 4*np.pi*G*rho
+        #DM_param = [rhos, rs, alpha, beta, gamma]
 
-        DM_param = [rhos, rs, alpha, beta, gamma]
-
-        Qarr, fQ, rtrunc = GQ(model_param,  
-		num_rsteps=Phi_table_steps, num_Qsteps=GQ_table_steps)
+        Qarr, fQ, rtrunc = context  #GQ(model_param,  
+	#	num_rsteps=Phi_table_steps, num_Qsteps=GQ_table_steps)
 
 	rlim = rtrunc #rtrunc = r200 
 	Plim = 0 #Plim0 
@@ -279,7 +357,7 @@ def OM_sample(model_param, samplesize, Phi_table_steps=1e5, GQ_table_steps=1000,
 	    while(True):
 		anxN = int(auxN/eff)
 		if (auxN > 1e7): # to limit the memory usage
-	                auxN = 1e7
+	                auxN = int(1e7)
 
 		#sampling r from proposal
 	        rindex = np.random.choice(np.arange(len(rprob_proposal)),size=auxN,p=norm_rprob_proposal)

@@ -1,227 +1,307 @@
 import numpy as np
 import random as rand
-from scipy import integrate
 import scipy.optimize
 import scipy.special as ss
 import time
 
-#TEST
-
-class Sampler(object):
-    def __init__(self, myDF=None, sampler_input=None, model_param=None):
-	#R=None
-        self.nX, self.nV, self.context, self.rlim, self.vlim = sampler_input(model_param)
 
 
-	if self.nX+self.nV > 6:
-		print 'We only support maximum of 6 variables'
-		return
+def impt_sample(model_class, steps, resample_factor, samplesize, 
+                     replace=True, r_vr_vt=False, r_v=False, filename=None):
+    '''
+    Sampling Importance Resampling (SIR) method, or importance sampling.
+    @param model_class (class): A model class object that contains the probability function DF(X,V),
+                        and the sampler_input list = [nX, nV, Xlim, Vlim], 
+                        where nX (int): number of spatial variables.
+                              nV (int) : number of velocity variables.
+                              Xlim (list): [min, max], range of the spatial variables
+                              Vlim (list): [min, max], range of the velocity variables.
 
-	self.model_param = model_param
-	self.myDF = myDF
-	if myDF==None or sampler_input==None:
-	    print 'Please specify your DF and/or sampler_input function(s)'
-            return
-	
-	if (self.rlim[1] <= self.rlim[0] or self.vlim[1] <= self.vlim[0]):
-            print 'ERROR: rmax <= rmin or vmax<=vmin, please double check the sample limits'
+           steps (int): Number of steps in the proposal function. (A uniform function has a step of 1).
+
+           resample_factor (int): a multiple of samplesize that sets the total proposal points.
+                                  (i.e. number of proposal points = resample_factor * samplesize).
+
+           samplesize (int): number of samples to draw from DF(X,V)
+
+           replace (bool): if True proposal points will be drawn with replacement, otherwise
+                           without replacement. (replace=True is recommended.) 
+    
+           r_vr_vt (bool): if True transform (r, vr, vt) --> (x,y,z, vx,vy,vz), 
+                              where vr, vt are radial and tangential velocities.
+
+           r_v (bool): if true transform (r, v) --> (x,y,z, vx,vy,vz).
+
+           filename (string): if given a filename, the output will be saved to a text file 
+                              the given file name.
+
+    Return: (array) sample drawn of the phase variables in (X,V). 
+            Return [x,y,z, vx,vy,vz] arrays if either r_vr_vt or r_v is true.
+    '''
 
 
-    def sample(self, sample_method='rejection', N=1000, steps = 20, rfactor = 3, 
-		r_vr_vt=False, r_v=False, filename=None):
+    nX, nV, Xlim, Vlim = model_class.sampler_input
+    nA = 0
 
-	if sample_method == 'rejection' :
-            ans = rejectsample(self.myDF, self.rlim, self.vlim, self.nX, self.nV, 0,
-                            self.model_param, self.context, N, r_vr_vt, r_v)
+    if nX+nV > 6:
+        print 'We only support a maximum of 6 variables'
+        return
+    if (r_vr_vt and r_v)==True:
+        print 'You cannot have both r_vr_vt AND r_v set to True'
+        return
+    if (Xlim[1] <= Xlim[0] or Vlim[1] <= Vlim[0]):
+        print 'ERROR: rmax <= rmin or vmax<=vmin, please double check the sample limits'
 
-	if sample_method == 'impt' :
-            ans = imptsample(self.myDF, self.rlim, self.vlim, self.nX, self.nV, 0,
-                            self.model_param, self.context, steps, N, rfactor, r_vr_vt, r_v)
 
-        if filename != None: 
-	    if (r_vr_vt or r_v ):
-		np.savetxt(filename, np.c_[ans], fmt='%1.6f')
-	    else:
-		
-		np.savetxt(filename, np.c_[np.transpose(ans)], fmt='%1.6f')
+    ans = imptsample(model_class.DF, Xlim, Vlim, nX, nV, nA,
+                [], [], steps, samplesize, resample_factor, replace,
+                r_vr_vt, r_v, z_vr_vt=False)
 
-        return ans
+    if filename != None:
+        if (r_vr_vt or r_v ):
+            np.savetxt(filename, np.c_[ans])
+        else:
+            np.savetxt(filename, np.c_[np.transpose(ans)])
+
+    return ans
+
+
+
+
+def rejection_sample(model_class, samplesize, r_vr_vt=False, r_v=False, filename=None, brute=True):
+    '''
+    Rejection sampling method.
+    @param model_class (class): A model class object that contains the probability function DF(X,V),
+                        and the sampler_input list = [nX, nV, Xlim, Vlim], 
+                        where nX (int): number of spatial variables.
+                              nV (int) : number of velocity variables.
+                              Xlim (list): [min, max], range of the spatial variables
+                              Vlim (list): [min, max], range of the velocity variables.
+           samplesize (int):  number of samples to draw from DF(X,V)
+           r_vr_vt    (bool): if true transform (r, vr, vt) --> (x,y,z, vx,vy,vz), 
+                              where vr, vt are radial and tangential velocities.
+           r_v (bool): if True transform (r, v) --> (x,y,z, vx,vy,vz).
+           filename (string): if given a filename, the output will be saved to a text file 
+                              the given file name.
+           brute (bool): if True find the maximum of the probability function by brute-force (best 
+                         for multi-modal functions). Otherwise Nelder-Mead Simplex algorithm 
+                         will be used (best for unimodal function).
+
+    Return: (array) sample drawn of the phase variables in (X,V). 
+            Return [x,y,z, vx,vy,vz] arrays if either r_vr_vt or r_v is true.
+    '''
+
+    
+    nX, nV, Xlim, Vlim, = model_class.sampler_input
+    nA = 0
+
+    if nX+nV > 6:
+        print 'We only support a maximum of 6 variables'
+        return
+    if (r_vr_vt and r_v)==True:
+        print 'You cannot have both r_vr_vt AND r_v set to True'
+        return
+    if (Xlim[1] <= Xlim[0] or Vlim[1] <= Vlim[0]):
+        print 'ERROR: rmax <= rmin or vmax<=vmin, please double check the sample limits'
+
+    ans = rejectsample(model_class.DF, Xlim, Vlim, nX, nV, nA,
+                [], [], samplesize, r_vr_vt, r_v, z_vr_vt=False)
+
+    if filename != None:
+        if (r_vr_vt or r_v ):
+            np.savetxt(filename, np.c_[ans])
+        else:
+            np.savetxt(filename, np.c_[np.transpose(ans)])
+
+    return ans
+
+
 
 
 ###------------------------------------------------------------------------------####
-###				Support Functions				 ####
+###                                Support Functions                             ####
 ###------------------------------------------------------------------------------####
 def imptsample(fprob, rlim, vlim, Xn, Vn, An, 
-		model_param, context, steps, samplesize, rfactor, 
-		r_vr_vt=False, r_v=False, z_vr_vt=False):
+                model_param, context, steps, samplesize, rfactor, replace=True, 
+                r_vr_vt=False, r_v=False, z_vr_vt=False):
 
-	showtime = True
-	t0=time.time()
-	if showtime:
-		print ' '
-		print 'Using importance sampling... '
-		print '  building proposal step function... '
+        showtime = True
+        t0=time.time()
+        if showtime:
+                print ' '
+                print 'Using importance sampling... '
+                print '  building proposal step function... '
 
-	r0 = 1e-9
-	rmin, rmax = rlim
-	vmin, vmax = vlim
+	steps = steps+1
+        r0 = 1e-9
+        rmin, rmax = rlim
+        vmin, vmax = vlim
         dx = (rmax - rmin) / (steps-1.0)
         dv = (vmax - vmin) / (steps-1.0)
-	da = (2*np.pi)/(steps-1.0)
+        da = (2*np.pi)/(steps-1.0)
 
-	optvar, fmax = getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax)
-	optvar = abs(optvar)
-	#optvar[0:Xn], optvar[Xn:Vn+Xn], optvar[Vn+Xn:var_num]
-	#print 'fmax is: ', optvar, fmax
-	
-	#build a list of arrays of variables
-	gridlist = []
-	max_index = []
-	for i in range(Xn):
-		arr = np.linspace(rmin+r0, rmax, steps)
-		max_index.append( sum(arr < optvar[0:Xn][i])-1 )
-		gridlist.append( arr )
-	for i in range(Vn):
-		arr = np.linspace(vmin, vmax, steps)
-		max_index.append( sum(arr < optvar[Xn:Vn+Xn][i])-1 )
-		gridlist.append( arr )
-	for i in range(An):
-		arr = np.linspace(0, 2*np.pi, steps)
-		max_index.append( sum(arr < optvar[Vn+Xn:var_num][i])-1 )
+        #optvar, fmax = getfmax(fprob, Xn, Vn, An, model_param, context, rlim, vlim)
+        #optvar = abs(optvar)
+        #optvar[0:Xn], optvar[Xn:Vn+Xn], optvar[Vn+Xn:var_num]
+        #print 'fmax is: ', optvar, fmax
+        
+        #build a list of arrays of variables
+        gridlist = []
+        max_index = []
+        for i in range(Xn):
+                arr = np.linspace(rmin+r0, rmax, steps)
+                #max_index.append( sum(arr < optvar[0:Xn][i])-1 )
+                gridlist.append( arr )
+        for i in range(Vn):
+                arr = np.linspace(vmin, vmax, steps)
+                #max_index.append( sum(arr < optvar[Xn:Vn+Xn][i])-1 )
+                gridlist.append( arr )
+        for i in range(An):
+                arr = np.linspace(0, 2*np.pi, steps)
+                #max_index.append( sum(arr < optvar[Vn+Xn:var_num][i])-1 )
                 gridlist.append( arr )
 
 
-	#build meshgrid of variables; dimension depends on the number of variables
-	s = steps
-	var_num = Xn + Vn + An
-	if (var_num == 1):
-	     mgridlist = np.meshgrid( gridlist[0][1:s], indexing='ij')
+        #build meshgrid of variables; dimension depends on the number of variables
+        s = steps
+        var_num = Xn + Vn + An
+        if (var_num == 1):
+             mgridlist = np.meshgrid( gridlist[0][1:s], indexing='ij')
 
-	if (var_num == 2):
-	    mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], indexing='ij')
+        if (var_num == 2):
+            mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], indexing='ij')
 
-	if (var_num == 3):
+        if (var_num == 3):
             mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], gridlist[2][1:s], indexing='ij')
 
-	if (var_num == 4):
+        if (var_num == 4):
              mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], gridlist[2][1:s], 
-				      gridlist[3][1:s], indexing='ij')
+                                      gridlist[3][1:s], indexing='ij')
 
-	if (var_num == 5):
+        if (var_num == 5):
              mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], gridlist[2][1:s], 
                                       gridlist[3][1:s], gridlist[4][1:s], indexing='ij')
 
-	if (var_num == 6):
-	     mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], gridlist[2][1:s], 
+        if (var_num == 6):
+             mgridlist = np.meshgrid( gridlist[0][1:s], gridlist[1][1:s], gridlist[2][1:s], 
                                       gridlist[3][1:s], gridlist[4][1:s], gridlist[5][1:s],indexing='ij')
 
-	#calculate values at grid points
-	X = [ Xi-dx*0.5 for Xi in mgridlist[0:Xn]]
-	V = [ Vi-dv*0.5 for Vi in mgridlist[Xn:Vn+Xn]]
-	A = [ Ai-da*0.5 for Ai in mgridlist[Vn+Xn: var_num]]
-	fvalues = fprob(X, V, model_param, context)
-	fvalues = fvalues + fmax*.05 #+ np.amin(fvalues[fvalues>0]) #so that it's non-negative
+        #calculate values at grid points
+        X = [ Xi-dx*0.5 for Xi in mgridlist[0:Xn]]
+        V = [ Vi-dv*0.5 for Vi in mgridlist[Xn:Vn+Xn]]
+        A = [ Ai-da*0.5 for Ai in mgridlist[Vn+Xn: var_num]]
+        fvalues = fprob(X, V) #, model_param, context)
+
+	#print 'max fvalues: ' , max(fvalues.flatten())
+        fvalues = fvalues + max(fvalues.flatten())*.1 #+ np.amin(fvalues[fvalues>0]) #so that it's non-negative
         parr = fvalues.flatten()
 
-	if (np.all(np.array(max_index)>=0) and np.all(np.array(max_index) < s-1)):
-		flatten_max_index = np.ravel_multi_index(max_index, fvalues.shape)
-		#print 'GOT THROUGH? ', flatten_max_index, fmax
-		parr[flatten_max_index] = fmax
+	'''
+        if (np.all(np.array(max_index)>=0) and np.all(np.array(max_index) < s-1)):
+                flatten_max_index = np.ravel_multi_index(max_index, fvalues.shape)
+                #print 'GOT THROUGH? ', flatten_max_index, fmax
+                parr[flatten_max_index] = fmax if parr[flatten_max_index]<fmax \
+						else parr[flatten_max_index]
+	'''
 
-	if (np.sum(parr)==0):
-		print "ERROR: density function is zero everywhere."
-                print "model param: ", model_param
+        if (np.sum(parr)==0):
+                print "ERROR: DF might be zero everywhere, or try to increase the step size."
+                #print "model param: ", model_param
                 return [[1],[2],[3],[4],[5],[6]]
 
-	t1=time.time()
-	if showtime:
-		print '  complete proposal function, time used: ', t1-t0, 'sec'
-		print '  start drawing samples...'
-	proptime = t1-t0
+        t1=time.time()
+        if showtime:
+                print '  complete proposal function, time used: ', t1-t0, 'sec'
+                print '  start drawing samples...'
+        proptime = t1-t0
 
-	#draw from flattened fvalues, that's equivalent to draw from multidimensional fvalues
-	#because dx and dv are constant. 
+        #draw from flattened fvalues, that's equivalent to draw from multidimensional fvalues
+        #because dx and dv are constant. 
         rN = int(rfactor * samplesize)
-	#print "len of parr negative???? ", parr<0, len(parr)
+        #print "len of parr negative???? ", parr<0, len(parr)
         norm_parr = parr/np.sum(parr)
         index = np.random.choice(np.arange(len(parr)) , size=rN, p = norm_parr)
         ps = parr[index]  #functional value at the drawn index
 
-	# get the variable values from the drawn index by: 1. flattening meshgrid of a given variable,
-	# 2. add the random values at range [0,dx] (or [0,dv]), since the probability is uniform within
-	# each step 
-	varlist = []
-	for i in range(Xn):
-		varlist.append(mgridlist[i].flatten()[index] - np.random.rand(rN)*dx )
-	for i in range(Vn):
+        # get the variable values from the drawn index by: 1. flattening meshgrid of a given variable,
+        # 2. add the random values at range [0,dx] (or [0,dv]), since the probability is uniform within
+        # each step 
+        varlist = []
+        for i in range(Xn):
+                varlist.append(mgridlist[i].flatten()[index] - np.random.rand(rN)*dx )
+        for i in range(Vn):
                 varlist.append(mgridlist[i+Xn].flatten()[index] - np.random.rand(rN)*dv )
-	for i in range(An):
+        for i in range(An):
                 varlist.append(mgridlist[i+Xn+Vn].flatten()[index] - np.random.rand(rN)*da )
 
 
-	# calculate the function values at the points drawn from proposal, and calculate 
-	# the importance weight ws
-	fs = fprob(varlist[0:Xn], varlist[Xn:Vn+Xn], model_param, context)
+        # calculate the function values at the points drawn from proposal, and calculate 
+        # the importance weight ws
+        fs = fprob(varlist[0:Xn], varlist[Xn:Vn+Xn]) # , model_param, context)
         ws = fs/ps
 
+	var1 = np.sum( ((ws-1)**2)/len(ws) )
+
+	print 'Weight Variance: ', np.var(ws), var1
+
         if (sum(ws)==0):
-                print 'ERROR all proposal samples has zero probability'
-		ne = 99
-                print "model param: ", model_param
+                print 'ERROR all proposal samples has zero probability >> Exit.'
+                ne = 99
+                #print "model param: ", model_param
                 return [[ne],[ne],[ne],[ne],[ne],[ne]]
 
 
-	#print "less than zero!!!??? ", fs[fs<0]
+        #print "less than zero!!!??? ", fs[fs<0]
         auxarr = np.vstack(tuple(varlist))
-        samplearr = resample( ws, auxarr, int(samplesize) )
+        samplearr = resample( ws, auxarr, int(samplesize), replace)
 
-	if showtime:
-		print '  sampling completed, time used: ', time.time()-t1, 'sec'
-		print 'sample time: ', proptime + time.time()-t1,  'sec'
-		print '------------------------------------'
+        if showtime:
+                print '  sampling completed, time used: ', time.time()-t1, 'sec'
+                print 'sample time: ', proptime + time.time()-t1,  'sec'
+                print '------------------------------------'
 
-	if r_vr_vt:
+        if r_vr_vt:
                 return r_vr_vt_complete(samplearr)
         if r_v:
                 return r_v_complete(samplearr)
         if z_vr_vt:
                 return z_vr_vt_complete(samplearr)
 
-	return np.transpose( np.array(samplearr) )
+        return np.transpose( np.array(samplearr) )
 
 
-def resample(warr, auxarr, samplesize):
-	auxarr2 = np.transpose(auxarr)
+def resample(warr, auxarr, samplesize, replace):
+        auxarr2 = np.transpose(auxarr)
         warr = warr/sum(warr)
-        index = np.random.choice(np.arange(len(warr)), size=samplesize, p=warr)
-	result2 = auxarr2[index]
+        index = np.random.choice(np.arange(len(warr)), size=samplesize, replace=replace, p=warr)
+        result2 = auxarr2[index]
         return result2
 
 
 def rejectsample(fprob, rlim, vlim, Xn, Vn, An, 
-		model_param, context, samplesize, r_vr_vt=False, r_v=False, z_vr_vt=False):
+                model_param, context, samplesize, r_vr_vt=False, r_v=False, z_vr_vt=False, brute=True):
 
-	showtime = True
+        showtime = True
         t0=time.time()
-	if showtime:
-		print ' '
-        	print 'Using rejection sampling... '
+        if showtime:
+                print ' '
+                print 'Using rejection sampling... '
         
 
-	var_num = Xn + Vn + An
-	samplesize = int(samplesize)	
+        var_num = Xn + Vn + An
+        samplesize = int(samplesize)        
         r0   = 10**-9
-	rmin, rmax = rlim
+        rmin, rmax = rlim
         vmin, vmax = vlim
 
-	optvar, fmax = getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax)
-	#print 'fmax is: ', optvar, fmax
-	#fmax=1e-5
-	
-	# rejection sampling loop. Pre-evaluate a number of function values to 
-	# estimate acceptance rate, then calculate the function 
-	# auxN = N_sample_still_needed/acceptance_rate number of times, 
-	# keep doing that until number of samples has reached @samplesize
+        optvar, fmax = getfmax(fprob, Xn, Vn, An, model_param, context, rlim, vlim, brute)
+        #print 'fmax is: ', optvar, fmax
+        #fmax=1e-5
+        
+        # rejection sampling loop. Pre-evaluate a number of function values to 
+        # estimate acceptance rate, then calculate the function 
+        # auxN = N_sample_still_needed/acceptance_rate number of times, 
+        # keep doing that until number of samples has reached @samplesize
         acceptX = []
         acceptV = []
         acceptA = []
@@ -233,19 +313,19 @@ def rejectsample(fprob, rlim, vlim, Xn, Vn, An,
         acceptN = 0
         computeN = 0
         j = 0
-	uX = []
-	while ( True ):
+        uX = []
+        while ( True ):
                 auxN = int(auxN/(eff))
-		#for i in range(Xn):
-		#	uX.append( np.random.rand(auxN)*rlim )
-		if (auxN > 1e7):
-			auxN = int(1e7)
-		uX = ( np.random.rand(Xn,auxN)*(rmax-rmin) + rmin )  
-		uV = ( np.random.rand(Vn,auxN)*(vmax-vmin) + vmin )
-		uA = ( np.random.rand(An,auxN)*np.pi*2 )
+                #for i in range(Xn):
+                #        uX.append( np.random.rand(auxN)*rlim )
+                if (auxN > 1e7):
+                        auxN = int(1e7)
+                uX = ( np.random.rand(Xn,auxN)*(rmax-rmin) + rmin )  
+                uV = ( np.random.rand(Vn,auxN)*(vmax-vmin) + vmin )
+                uA = ( np.random.rand(An,auxN)*np.pi*2 )
                 u  = np.random.rand(auxN)
 
-                uf = fprob(list(uX), list(uV), model_param, context)
+                uf = fprob(list(uX), list(uV))
                 accept_index = ( (uf/fmax)>u )
                 acceptN += np.sum(accept_index)
                 computeN += auxN
@@ -256,7 +336,7 @@ def rejectsample(fprob, rlim, vlim, Xn, Vn, An,
                 acceptV.append( uV[:,accept_index] )
                 acceptA.append( uA[:,accept_index] )
 
-		print '  ', j, ' total_points_proposed: ', computeN, ' total_points_accepted: ', acceptN
+                print '  ', j, ' total_points_proposed: ', computeN, ' total_points_accepted: ', acceptN
                 j=j+1
 
                 if (acceptN >= samplesize):
@@ -270,19 +350,19 @@ def rejectsample(fprob, rlim, vlim, Xn, Vn, An,
         samplearr = np.vstack((Xarr,Varr,Aarr))
         samplearr = np.swapaxes(samplearr,0,1)
 
-	if showtime:
-        	print "  final acceptance rate: ", eff
-		print '  sample time: ', time.time()-t0, 'sec'
-		print '------------------------------------'
+        if showtime:
+                print "  final acceptance rate: ", eff
+                print '  sample time: ', time.time()-t0, 'sec'
+                print '------------------------------------'
 
-	if r_vr_vt:
+        if r_vr_vt:
                 return r_vr_vt_complete(samplearr)
         if r_v:
                 return r_v_complete(samplearr)
-	if z_vr_vt:
-		return z_vr_vt_complete(samplearr)
+        if z_vr_vt:
+                return z_vr_vt_complete(samplearr)
 
-	return np.transpose(samplearr)
+        return np.transpose(samplearr)
 
 def r_vr_vt_complete(samplelist):
         if len(samplelist)>=1:
@@ -347,9 +427,9 @@ def r_v_complete(samplelist):
 
 
 def z_vr_vt_complete(samplelist, context):
-	#Important: to use z_vr_vt, the fist element of context needs to be the projected radius R.
-	R = context[0]
-	if len(samplelist)>=1:
+        #Important: to use z_vr_vt, the fist element of context needs to be the projected radius R.
+        R = context[0]
+        if len(samplelist)>=1:
                 samplearr = np.asarray(samplelist)
                 zarr  = samplearr[:,0]
                 vrarr = samplearr[:,1]
@@ -358,16 +438,16 @@ def z_vr_vt_complete(samplelist, context):
         else:   #in case it's empty..
                 print "ERROR: Empty sampleset"
 
-	zsize = len(zarr)
-	phi = np.random.random_sample( zsize ) * 2.0 * np.pi
-	x   = R * np.cos(phi)
-	y   = R * np.sin(phi)
-	z   = zarr
+        zsize = len(zarr)
+        phi = np.random.random_sample( zsize ) * 2.0 * np.pi
+        x   = R * np.cos(phi)
+        y   = R * np.sin(phi)
+        z   = zarr
 
-	r  = (z*z + x*x + y*y)**.5
+        r  = (z*z + x*x + y*y)**.5
         theta = np.arccos(z/r) 
 
-	v  = (vrarr*vrarr + vtarr*vtarr )**0.5
+        v  = (vrarr*vrarr + vtarr*vtarr )**0.5
         vsign = np.sign( np.random.random_sample( zsize ) - 0.5 )  #probably not necessary?
         vphi  = np.random.random_sample( zsize ) * 2.0 * np.pi
 
@@ -382,73 +462,36 @@ def z_vr_vt_complete(samplelist, context):
         vz = -np.sin(theta)*vx2 + np.cos(theta)*vz2
         return x, y, z, vx, vy, vz
 
-	
+        
 
-def getfmax(fprob, Xn, Vn, An, model_param, context, rmax, vmax):
+def getfmax(fprob, Xn, Vn, An, model_param, context, rlim, vlim, brute=True):
 
+	rmax = rlim[1]
+	vmax = vlim[1]
         var_num = Xn + Vn + An
-	guessX = np.array( [rmax*.1]*Xn ) + 1e-3
-	guessV = np.array( [vmax*.1]*Vn ) + 1e-3
-	guess = tuple( np.hstack((guessX, guessV)) )
-	
+        guessX = np.array( [rmax*.1]*Xn ) #+ 1e-3
+        guessV = np.array( [vmax*.1]*Vn ) #+ 1e-3
+        guess = tuple( np.hstack((guessX, guessV)) )
+        
+	range = tuple( [rlim]*Xn + [vlim]*Vn ) #note rlim and vlim is [min, max]
 
-        if var_num == 6 :
-            def aux_fprob(x1,x2,x3,x4,x5,x6):
-                vars = [x1,x2,x3,x4,x5,x6]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn],
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4,x5,x6): -aux_fprob(x1,x2,x3,x4,x5,x6),
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
-        if var_num == 5 :
-            def aux_fprob(x1,x2,x3,x4,x5):
-                vars = [x1,x2,x3,x4,x5]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4,x5): -aux_fprob(x1,x2,x3,x4,x5),
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
+        def aux_fprob(*args):
+            result = fprob(args[0][0:Xn], args[0][Xn:Vn+Xn])
+            return -1*result
 
-        if var_num == 4 :
-            def aux_fprob(x1,x2,x3,x4):
-                vars = [x1,x2,x3,x4]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1,x2,x3,x4): -aux_fprob(x1,x2,x3,x4),
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
+        if brute:
+            optvar = scipy.optimize.brute(aux_fprob,
+                       range, args=(), Ns=20, full_output=True, finish=scipy.optimize.fmin)[0]
+        else:
+            optvar = scipy.optimize.fmin(aux_fprob,
+                       guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
-        if var_num == 3 :
-            def aux_fprob(x1,x2,x3):
-                vars = [x1,x2,x3]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1,x2,x3): -aux_fprob(x1,x2,x3),
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
 
-        if var_num == 2 :
-            def aux_fprob(x1,x2):
-                vars = [x1,x2]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1,x2): -aux_fprob(x1,x2),
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
+        fmax = 1.0 * fprob(optvar[0:Xn], optvar[Xn:Vn+Xn]) 
+	print 'optvar, max: ', optvar, fmax
 
-	if var_num == 1 :
-            def aux_fprob(x1):
-                vars = [x1]
-                result = fprob(vars[0:Xn], vars[Xn:Vn+Xn], 
-                                model_param, context)
-                return result
-            optvar = scipy.optimize.fmin(lambda (x1): -aux_fprob(x1), 
-			guess, xtol=1e-7, ftol=1e-7, maxiter=int(1e6), maxfun=int(1e7), disp=False)
+        return optvar, fmax*1.05 +00 #TODO
 
 
 
-        fmax = 1.0 * fprob(optvar[0:Xn], optvar[Xn:Vn+Xn], 
-                                model_param, context)
-
-        return optvar, fmax*1.05

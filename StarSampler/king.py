@@ -5,41 +5,80 @@ from scipy.interpolate import PchipInterpolator
 from math import erf
 from scipy import special
 
-# @param X: a list of input position coordinates (i.e. [x = r/king_radius]).
-#        V: a list of input velocity coordinates (i.e. [v]).
-#	 model_param: [psi0, ratio0], the relative potential at center and its 
-#	 	ratio with velocity dispersion square.
-#	 context: [fP], the interpolated function of Phi/sigma^2 versus x.
-def king_fprob(X, V, model_param, context):
 
-	x, = X  #x=r/king_radius
-	v, = V
-	psi0, ratio0, = model_param
-	fP, = context
 
-        sigma2= (psi0/ratio0)
+
+class King(object):
+    def __init__(self, **model_param):
+        '''
+        Reading in the model parameters, and perform necessary calculations 
+        to setup calculation of the model density function DF(X,V).
+
+        It is required that this __init__( ) function contains:
+            self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim], where
+                              nX (int)   : number of spatial variables.
+                              nV (int)   : number of velocity variables.
+                              Xlim (list): [min, max], range of the spatial variables
+                              Vlim (list): [min, max], range of the velocity variables. 
+        '''
+
+        # Perform necessary calculations to setup King model, and use for DF calculation
+	self.model_param = model_param
+        sigma  = model_param['sigma']
+        ratio0 = model_param['ratio0']
+        rho0   = model_param['rho0']
+        xarr, psi_sigma2, fP = getPsigma2(ratio0) #calculate king model potential
+
+        sigma2 = sigma*sigma 
+        psi0 = ratio0*sigma2
+        G = 4.302*1e-6 #(kpc/m_sun) (km/s)^2 
+        self.r0 = (9*sigma2/(4*np.pi*G*rho0))**.5 #king radius [kpc]
+
+        self.param_list = [sigma, ratio0, rho0]
+        self.model_param = model_param  #
+        self.context = [fP]
+
+
+        # Required user input regarding this specific model
+        self.nX = 1
+        self.nV = 1
+        self.Xlim = [0, np.max(xarr) * self.r0 ]
+        self.Vlim = [0 , (2.0*psi0)**0.5]
+
+	self.sampler_input = [self.nX, self.nV, self.Xlim, self.Vlim]
+
+
+    def DF(self, X, V):
+        '''
+        SFW probability function
+
+        @param X: list of input position coordinates (i.e. [r]).
+               V: list of input velocity coordinates (i.e. [v]).
+
+        Results from __init__() needed for the DF(X,V) calculation:  
+           a) model param_list = [a,d,e, Ec, rlim, b0, b1, alp, q, Jb, rho, rs, alpha, beta, gamma] 
+           b) context = [fP], where
+                     fP(x): potential function of king model, where x = r/r0, 
+                            where r0 is the king radius
+
+        Return: probability of coordinates in X, V
+        '''
+        
+        r, = X
+        v, = V
+        sigma, ratio0, rho0 = self.param_list
+
+        sigma2 = sigma*sigma
+        fP, = self.context
+
+        x = r/self.r0  #x=r/king_radius
         E = fP(x) - v*v/(2.*sigma2)  #note that E = E/sigma^2
+        rho1 = 1. #constant is inrelevant for sampling
 
-        rho1 = 1.
-
-	E = E * (E>0)
-
-	DF = rho1*(2*np.pi*sigma2)**(-1.5) * (np.exp(E) - 1)
+        E = E * (E>0)
+        DF = rho1*(2*np.pi*sigma2)**(-1.5) * (np.exp(E) - 1)
 
         return DF* v*v*x*x *(4.*np.pi)**2
-
-
-def sampler_input(model_param):
-	psi0, ratio0, = model_param
-        xarr, psi_sigma2, fP = getPsigma2(ratio0)
-
-	nX = 1
-	nV = 1
-        context = [fP]
-        rlim = [0, np.max(xarr)]
-	vlim = [0 , (2.0*psi0)**0.5]
-
-	return nX, nV, context, rlim, vlim
 
 
 
