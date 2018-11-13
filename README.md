@@ -60,10 +60,11 @@ sfw1 = sfw.SFW(**model_param)
 # user can set one of them to True and that will activate corresponding transformation 
 # to [x,y,z,vx,vy,vz] coordinates.
 
-sfw_rej_samples = ssp.rejection_sample(sfw1, samplesize = Nstars, r_vr_vt=True, r_v=False, filename=None)
+sfw_rej_samples = ssp.rejection_sample(sfw1, samplesize = Nstars, 
+                                       r_vr_vt=True, r_v=False, filename=None)
 
 #OR
-#3. sample the model using importance sampling, requires additional @param steps and @param resample_factor.
+#3. sample the model using importance sampling, requires two additional parameters.
 # @param steps: number of steps for the proposal function, 
 # @param rfactor: the multiplication factor of the sample size that sets the number of proposal 
 #                 points to draw.
@@ -137,11 +138,12 @@ Nstars= 1000
 om1 = om.OM(**model_param)
 
 # Use OM conditional sampler
-#@param Phi_table_steps: number of steps that calculates the potential for interpolation (1e5 is good).
-#@param GQ_table_steps: number of steps that calculates the G(Q) function for interpolation, 
-#   and take derivative. (1000 is sufficent)
-#@param proposal_steps: number of steps to calculate to construct the proposal density of 
-#   both r and Q distribution. (1000 is sufficient)
+#@param Phi_table_steps: number of steps that calculates the potential for 
+#                        interpolation. (1e5 is good)
+#@param GQ_table_steps: number of steps that calculates the G(Q) function for 
+#                       interpolation and take derivatives. (1000 is sufficent)
+#@param proposal_steps: number of steps to calculate to construct the proposal 
+#                       density of both r and Q distribution. (1000 is sufficient)
 
 OM_conditional_output = om.conditional_sample(samplesize=Nstars, \
     Phi_table_steps=1e5, GQ_table_steps=1000, proposal_steps = 1000, r_vr_vt=True)
