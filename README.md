@@ -66,8 +66,8 @@ sfw_rej_samples = ssp.rejection_sample(sfw1, samplesize = Nstars,
 #OR
 #3. sample the model using importance sampling, requires two additional parameters.
 # @param steps: number of steps for the proposal function, 
-# @param rfactor: the multiplication factor of the sample size that sets the number of proposal 
-#                 points to draw.
+# @param rfactor: the multiplication factor of the sample size that sets the number of
+#                 proposal points to draw.
 
 sfw_impt_samples = ssp.impt_sample(sfw1,  steps=20, resample_factor=5,
                 samplesize = Nstars, replace=True, r_vr_vt=True, r_v=False, filename=None)               
